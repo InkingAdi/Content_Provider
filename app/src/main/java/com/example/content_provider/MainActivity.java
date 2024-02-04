@@ -1,6 +1,7 @@
 package com.example.content_provider;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -10,15 +11,18 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.CallLog;
 import android.provider.ContactsContract;
 import android.telephony.SmsMessage;
 import android.util.Log;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -27,11 +31,13 @@ public class MainActivity extends AppCompatActivity {
     //List
     ListView listview;
 
+    public static final String TAG ="LOG_MAIN_ACTIVITY";
+
     //Array adapter to getTheString and add it into ListView
     ArrayAdapter<String> adapter;
 
     //To Store list of Contact
-    ArrayList<String> contactList, recent_contacts ;
+    ArrayList<String> contactList, recent_contacts;
 
     String Name, Contact, contact_id;
 
@@ -41,6 +47,7 @@ public class MainActivity extends AppCompatActivity {
     //Cursor object to store large amount of data;
     Cursor cursor_contact_list, cursor_recent_contact;
 
+    @RequiresApi(api = Build.VERSION_CODES.S)
     @SuppressLint(value = "Range")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
 
                 }
 
-                Log.d("LOGS",contactList.toString());
+                Log.d(TAG,contactList.toString());
                 cursor_contact_list.close();
 
                 adapter = new ArrayAdapter<String>(MainActivity.this,android.R.layout.simple_spinner_dropdown_item,contactList);
@@ -93,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.btn_show_recent_call).setOnClickListener(view -> {
             String  numb, call_type_name = "",name , date;
-            Integer call_type ;
+            Integer call_type, call_duration;
             cursor_recent_contact = getContentResolver().query(CallLog.Calls.CONTENT_URI,null,null,null,CallLog.Calls.CACHED_NAME+" ASC");
             while(cursor_recent_contact.moveToNext() && cursor_recent_contact != null) {
 
@@ -102,8 +109,18 @@ public class MainActivity extends AppCompatActivity {
                 name = cursor_recent_contact.getString(cursor_recent_contact.getColumnIndex(CallLog.Calls.CACHED_NAME));
 
                 date = cursor_recent_contact.getString(cursor_recent_contact.getColumnIndex(CallLog.Calls.DATE));
+
                 Date dates = new Date(Long.valueOf(date));
+
                 call_type = cursor_recent_contact.getInt(cursor_recent_contact.getColumnIndex(CallLog.Calls.TYPE));
+
+                call_duration = cursor_recent_contact.getInt(cursor_recent_contact.getColumnIndex(CallLog.Calls.DURATION));
+
+                int seconds = call_duration % 60;
+                Duration duration = Duration.ofSeconds(call_duration);
+
+                @SuppressLint("DefaultLocale") String hms = String.format("%02d : %02d : %02d", duration.toHours(),duration.toMinutes(),seconds);
+
                 switch (call_type) {
                     case CallLog.Calls.OUTGOING_TYPE:
                         call_type_name = "OUTGOING";
@@ -116,12 +133,31 @@ public class MainActivity extends AppCompatActivity {
                     case CallLog.Calls.MISSED_TYPE:
                         call_type_name = "MISSED";
                         break;
+
+                    case CallLog.Calls.BLOCKED_TYPE:
+                        call_type_name = "BLOCKED";
+                        break;
+
+                    case CallLog.Calls.REJECTED_TYPE:
+                        call_type_name = "REJECTED";
+                        break;
+                    case CallLog.Calls.VOICEMAIL_TYPE:
+                        call_type_name = "VOICEMAIL";
+                        break;
+                    case CallLog.Calls.ANSWERED_EXTERNALLY_TYPE:
+                        call_type_name = "ANSWERED EXTERNALLY";
+                        break;
                 }
-                recent_contacts.add(name+" : "+numb +"\n"+call_type_name+" : "+ dates);
+
+                recent_contacts.add(name+" : "+numb +"\n"+call_type_name+" : "+ dates + " : "+hms);
+
             }
+
+            Log.d(TAG, "onCreate: "+recent_contacts);
             cursor_recent_contact.close();
             adapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_dropdown_item,recent_contacts);
             listview.setAdapter(adapter);
+
         });
 
     }
